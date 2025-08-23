@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Serveur de fichiers</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+        <style>
+            body {
+                    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 20px;
+                    background: #ffffff;    
+                }
+            h1 {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            #breadcrumb {
+                margin-bottom: 10px;
+                font-size: 14px;
+            }
+            #breadcrumb span {
+                cursor: pointer;
+                color: #0066cc;
+            }
+            #breadcrumb span:hover { 
+                text-decoration: underline;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background: #fff;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            th, td {
+                padding: 10px;
+                border-bottom: 1px solid #ddd;
+                text-align: left;
+            }
+            /* Styles des en-têtes de tableau avec les couleurs Eneo */
+            th {
+                background-color: #307aab; /* Vert d'Eneo */
+                font-weight: bold;
+                cursor: pointer;
+                position: relative;
+                color: white; /* Texte en blanc pour un meilleur contraste */
+            }
+            th:hover {
+                background-color: #a7c446; /* Un vert un peu plus foncé au survol */
+            }
+            tr:hover {
+                background-color: #e6f0ff;
+            }
+            /* Style pour les icônes */
+            .file-icon {
+                margin-right: 8px;
+            }
+            .folder, .file {
+                cursor: pointer;
+            }
+            /* Style des icônes de tri */
+            .sort-icon {
+                margin-left: 8px;
+                color: #fff; /* Couleur blanche pour les icônes de tri */
+            }
+            /* Couleurs pour les icônes de fichiers */
+            .file-icon.fa-folder { color: #f1c40f; }
+            .file-icon.fa-file-excel { color: #21a366; }
+            .file-icon.fa-file-word { color: #2b579a; }
+            .file-icon.fa-file-pdf { color: #e44d26; }
+            .file-icon.fa-file-image { color: #007bff; }
+            .file-icon.fa-file-archive { color: #7b7d7f; }
+            .file-icon.fa-file-alt { color: #555; }
+            .file-icon.fa-file { color: #555; }
+        </style>
+    </head>
+    <body>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <a href="?path=">
+                <img src="logo2.png" alt="Logo Eneo" style="height: 50px;">
+            </a>
+            <h1 style="flex-grow: 1; text-align: center; margin: 0;">
+                <span style="color: #040f16;">RESSOURCES DOCUMENTAIRES</span>
+                <span style="color: #0e71b3;">E</span><span style="color: #97be13;">NEO</span>
+            </h1>
+            <div style="width: 50px;"></div>
+        </div>
+        <div id="breadcrumb">
+            <span data-path>Dossiers</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th data-sort-by="name">Nom <i class="sort-icon fas fa-sort"></i></th>
+                    <th data-sort-by="modified_at">Date de modification <i class="sort-icon fas fa-sort"></i></th>
+                    <th data-sort-by="type">Type <i class="sort-icon fas fa-sort"></i></th>
+                    <th data-sort-by="size">Taille <i class="sort-icon fas fa-sort"></i></th>
+                </tr>
+            </thead>
+            <tbody id="file-list"></tbody>
+        </table>
+    </body>
+</html>
+<script>
+    let currentPath = "";
+    let fileList = [];
+    let sortColumn = 'name';
+    let sortDirection = 'asc';
+
+    // Fonction pour obtenir l'icône Font Awesome en fonction du type de fichier
+    function getFileIcon(fileName, isDirectory) {
+        if (isDirectory) {
+            return 'fas fa-folder';
+        }
+        const extension = fileName.split('.').pop().toLowerCase();
+        switch (extension) {
+            case 'xlsx':
+            case 'xls':
+                return 'fas fa-file-excel';
+            case 'docx':
+            case 'doc':
+                return 'fas fa-file-word';
+            case 'pdf':
+                return 'fas fa-file-pdf';
+            case 'txt':
+                return 'fas fa-file-alt';
+            case 'png':
+            case 'jpg':
+            case 'jpeg':
+            case 'gif':
+                return 'fas fa-file-image';
+            case 'zip':
+            case 'rar':
+                return 'fas fa-file-archive';
+            default:
+                return 'fas fa-file';
+        }
+    }
+
+    function formatSize(size) {
+        if (size === null) return "";
+        if (size < 1024) return size + " B";
+        if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " Ko";
+        return (size / (1024 * 1024)).toFixed(1) + " Mo";
+    }
+
+    function formatDate(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        if (isNaN(date)) {
+            return 'Date invalide';
+        }
+        const options = {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        return date.toLocaleDateString('fr-FR', options);
+    }
+
+    function renderBreadcrumb() {
+        const parts = currentPath.split("/").filter(p => p);
+        const container = document.getElementById("breadcrumb");
+        container.innerHTML = `<span data-path="">Dossiers</span>`;
+        parts.forEach((part, i) => {
+            const pathUpTo = parts.slice(0, i + 1).join("/");
+            container.innerHTML += ` / <span data-path="${pathUpTo}">${part}</span>`;
+        });
+
+        container.querySelectorAll("span").forEach(el => {
+            el.addEventListener("click", () => {
+                currentPath = el.dataset.path;
+                loadFiles();
+            });
+        });
+    }
+
+    function sortFiles(column) {
+        if (sortColumn === column) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = column;
+            sortDirection = 'asc';
+        }
+        renderFiles();
+    }
+    
+    document.querySelectorAll('th[data-sort-by]').forEach(th => {
+        th.addEventListener('click', () => {
+            sortFiles(th.getAttribute('data-sort-by'));
+        });
+    });
+
+    function renderFiles() {
+      const sortedFiles = fileList.sort((a, b) => {
+      // Logique pour toujours placer les dossiers en premier
+      if (a.is_directory !== b.is_directory) {
+          return a.is_directory ? -1 : 1;
+      }
+
+      // Récupérer les valeurs à comparer
+      let aValue = a[sortColumn];
+      let bValue = b[sortColumn];
+
+      // Correction 1 : Gérer le tri insensible à la casse pour les noms et types de fichiers
+      if (sortColumn === 'name' || sortColumn === 'type') {
+          aValue = String(aValue).toLowerCase();
+          bValue = String(bValue).toLowerCase();
+      }
+      // Correction 2 : Gérer le tri correct des dates et des tailles
+      else if (sortColumn === 'modified_at') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+      } else if (sortColumn === 'size') {
+          aValue = aValue || 0;
+          bValue = bValue || 0;
+      }
+
+      if (aValue < bValue) {
+          return sortDirection === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+          return sortDirection === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+        const tbody = document.getElementById("file-list");
+        tbody.innerHTML = "";
+        
+        document.querySelectorAll('.sort-icon').forEach(icon => {
+            icon.className = 'sort-icon fas fa-sort';
+        });
+        const currentSortIcon = document.querySelector(`th[data-sort-by="${sortColumn}"] .sort-icon`);
+        if (currentSortIcon) {
+            currentSortIcon.className = `sort-icon fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'}`;
+        }
+
+        sortedFiles.forEach(f => {
+            const tr = document.createElement("tr");
+
+            const nameCell = document.createElement("td");
+            nameCell.className = f.is_directory ? 'folder' : 'file';
+            const iconClass = getFileIcon(f.name, f.is_directory);
+            nameCell.innerHTML = `<i class="${iconClass} file-icon"></i>${f.name}`;
+
+            const modifiedCell = document.createElement("td");
+            modifiedCell.textContent = formatDate(f.modified_at);
+
+            const typeCell = document.createElement("td");
+            typeCell.textContent = f.type;
+
+            const sizeCell = document.createElement("td");
+            sizeCell.textContent = formatSize(f.size);
+
+            tr.appendChild(nameCell);
+            tr.appendChild(modifiedCell);
+            tr.appendChild(typeCell);
+            tr.appendChild(sizeCell);
+
+            if (f.is_directory) {
+                nameCell.addEventListener("dblclick", () => {
+                    currentPath = currentPath ? currentPath + "/" + f.name : f.name;
+                    loadFiles();
+                });
+            } else {
+                nameCell.addEventListener("dblclick", () => {
+                    const downloadUrl = `http://localhost:5000/api/download?path=${encodeURIComponent(currentPath ? currentPath + "/" + f.name : f.name)}`;
+                    window.location.href = downloadUrl;
+                });
+            }
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function loadFiles() {
+        renderBreadcrumb();
+        const url = `http://localhost:5000/api/files?path=${encodeURIComponent(currentPath)}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
+            fileList = await res.json();
+            renderFiles();
+        } catch (err) {
+            console.error("Erreur chargement fichiers:", err);
+            const tbody = document.getElementById("file-list");
+            tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align: center;">Impossible de charger le dossier</td></tr>`;
+        }
+    }
+  
+    loadFiles();
+</script>
