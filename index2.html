@@ -9,7 +9,11 @@
             body {
                     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
                     margin: 20px;
-                    background: #ffffff;    
+                    background: #ffffff;  
+                    -webkit-user-select: none;  /* Pour les navigateurs WebKit (Chrome, Safari) */
+                    -moz-user-select: none;     /* Pour Firefox */
+                    -ms-user-select: none;      /* Pour Internet Explorer/Edge */
+                    user-select: none;          /* Standard */  
                 }
             h1 {
                 text-align: center;
@@ -39,14 +43,14 @@
             }
             /* Styles des en-têtes de tableau avec les couleurs Eneo */
             th {
-                background-color: #307aab; /* Vert d'Eneo */
+                background-color: #307aab; 
                 font-weight: bold;
                 cursor: pointer;
                 position: relative;
-                color: white; /* Texte en blanc pour un meilleur contraste */
+                color: white; 
             }
             th:hover {
-                background-color: #a7c446; /* Un vert un peu plus foncé au survol */
+                background-color: #a7c446; 
             }
             tr:hover {
                 background-color: #e6f0ff;
@@ -61,7 +65,7 @@
             /* Style des icônes de tri */
             .sort-icon {
                 margin-left: 8px;
-                color: #fff; /* Couleur blanche pour les icônes de tri */
+                color: #fff; 
             }
             /* Couleurs pour les icônes de fichiers */
             .file-icon.fa-folder { color: #f1c40f; }
@@ -72,6 +76,7 @@
             .file-icon.fa-file-archive { color: #7b7d7f; }
             .file-icon.fa-file-alt { color: #555; }
             .file-icon.fa-file { color: #555; }
+            .file-icon.fa-file-powerpoint { color: #d24726;}
         </style>
     </head>
     <body>
@@ -120,6 +125,9 @@
             case 'docx':
             case 'doc':
                 return 'fas fa-file-word';
+            case 'pptx':
+            case 'ppt':
+                return 'fas fa-file-powerpoint';
             case 'pdf':
                 return 'fas fa-file-pdf';
             case 'txt':
@@ -138,7 +146,7 @@
     }
 
     function formatSize(size) {
-        if (size === null) return "";
+        if (size === null) return "_";
         if (size < 1024) return size + " B";
         if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " Ko";
         return (size / (1024 * 1024)).toFixed(1) + " Mo";
@@ -204,12 +212,12 @@
       let aValue = a[sortColumn];
       let bValue = b[sortColumn];
 
-      // Correction 1 : Gérer le tri insensible à la casse pour les noms et types de fichiers
+      // Gérer le tri insensible à la casse pour les noms et types de fichiers
       if (sortColumn === 'name' || sortColumn === 'type') {
           aValue = String(aValue).toLowerCase();
           bValue = String(bValue).toLowerCase();
       }
-      // Correction 2 : Gérer le tri correct des dates et des tailles
+      // Gérer le tri correct des dates et des tailles
       else if (sortColumn === 'modified_at') {
           aValue = new Date(aValue).getTime();
           bValue = new Date(bValue).getTime();
@@ -287,9 +295,9 @@
         } catch (err) {
             console.error("Erreur chargement fichiers:", err);
             const tbody = document.getElementById("file-list");
-            tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align: center;">Impossible de charger le dossier</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align: center;">⚠️ Impossible de charger les dossiers. Veuillez vérifier que le serveur est lancé et accessible.</td></tr>`;
         }
     }
-  
+
     loadFiles();
 </script>

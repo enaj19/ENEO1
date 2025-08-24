@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000;;
 
 app.use(cors());
 
-// Le chemin vers votre serveur de fichiers simulé
+// Le chemin vers le serveur de fichiers simulé
 const UPLOAD_FOLDER = process.env.UPLOAD_FOLDER || path.join(__dirname, "fichiers_test");
 
 // Fonction pour déterminer le type de fichier en se basant sur son extension
